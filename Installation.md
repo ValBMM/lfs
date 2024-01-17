@@ -2,11 +2,11 @@
 
 # Sommaire
 
-[Introduction](Installation%20d%E2%80%99un%20Linux%20from%20Scratch%20avec%20Luks%20et%20%20df5021cb38704705acefc27ecd2a9146.md) 
+Introduction 
 
-[Prérequis](Installation%20d%E2%80%99un%20Linux%20from%20Scratch%20avec%20Luks%20et%20%20df5021cb38704705acefc27ecd2a9146.md) 
+Prérequis
 
-[Préparation du système pilote](Installation%20d%E2%80%99un%20Linux%20from%20Scratch%20avec%20Luks%20et%20%20df5021cb38704705acefc27ecd2a9146.md) 
+Préparation du système pilote
 
 Partitionnement du disque cible
 
@@ -24,7 +24,7 @@ Configuration du boot
 
 # Introduction
 
-Le but de ce projet est de voir comment installer un système Linux from scratch (=depuis 0) avec systemd grâce au livre LFS de **Gerard Beekmans (**[https://www.fr.linuxfromscratch.org/](https://www.fr.linuxfromscratch.org/)). Cette méthodologie/documentation nous indique comment installer un système Linux de A à Z, pour notre part nous allons prendre quelques initiatives qui demandent plus de rigueur et d’attention en partitionnant notre disque dur avec LVM et en le chiffrant avec Luks. Ces 2  parties ne sont pas présentes dans le livre et demandent donc une connaissance du sujet.
+Le but de ce projet est de voir comment installer un système Linux from scratch (=depuis 0) avec systemd grâce au livre LFS de **Gerard Beekmans** ([https://www.fr.linuxfromscratch.org/](https://www.fr.linuxfromscratch.org/)). Cette méthodologie/documentation nous indique comment installer un système Linux de A à Z, pour notre part nous allons prendre quelques initiatives qui demandent plus de rigueur et d’attention en partitionnant notre disque dur avec LVM et en le chiffrant avec Luks. Ces 2  parties ne sont pas présentes dans le livre et demandent donc une connaissance du sujet.
 
 # Prérequis
 
@@ -153,4 +153,39 @@ Nous allons aussi créer un utilisateur pour préparer notre système cible :
 ```bash
 groupadd lfs
 useradd -s /bin/bash -g lfs -m -k /dev/null lfs
+```
+
+# Partitionnement du disque
+
+Nous allons partitionner notre disque avec LVM. On vérifie que le disque est bien vu et on créer avec  ```parted``` nos 2 partitions
+```
+lsblk
+
+parted /dev/sda
+(parted) mklabel gpt
+(parted) mkpart "EFI system partition" fat32 1MiB 512MiB 
+(parted) set 1 esp on 
+(parted) mkpart "System partition" btrfs 512MiB 100%
+```
+
+On chiffre notre disque dur :
+
+```
+cryptsetup luksFormat /dev/sda2
+cryptsetup open /dev/sda2 cryptlfs
+```
+
+On partitionne avec en **btrfs**
+```
+pvcreate /dev/mapper/cryptlfs
+vgcreate secure /dev/mapper/cryptlfs
+lvcreate -L 3G secure -n swap
+lvcreate -l 100%FREE secure -n system
+```
+
+On créé nos points de montage :
+```
+mount /dev/mapper/secure-system /mnt
+btrfs subvolume create /mnt/@
+btrfs subvolume create /mnt/@home
 ```
